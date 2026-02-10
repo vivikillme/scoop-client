@@ -1,0 +1,39 @@
+{
+  "name": "scoop-client",
+  "version": "1.0.0",
+  "description": "Scoop Desktop GUI Client",
+  "main": "app/background.js",
+  "scripts": {
+    "dev": "nextron",
+    "build": "nextron build",
+    "electron:dev": "nextron",
+    "electron:pack:win": "nextron build --win --x64",
+    "electron:pack:mac": "nextron build --mac --arm64 --x64",
+    "postinstall": "electron-builder install-app-deps"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.0.0",
+    "electron-store": "^8.2.0",
+    "lucide-react": "^0.400.0",
+    "next": "^14.2.0",
+    "react": "^18.3.0",
+    "react-dom": "^18.3.0",
+    "class-variance-authority": "^0.7.0",
+    "clsx": "^2.1.0",
+    "tailwind-merge": "^2.3.0"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.11",
+    "@types/node": "^20.14.0",
+    "@types/react": "^18.3.0",
+    "@types/react-dom": "^18.3.0",
+    "autoprefixer": "^10.4.19",
+    "electron": "^30.0.0",
+    "electron-builder": "^24.13.0",
+    "nextron": "^9.1.0",
+    "postcss": "^8.4.38",
+    "tailwindcss": "^3.4.4",
+    "tailwindcss-animate": "^1.0.7",
+    "typescript": "^5.4.0"
+  }
+}
