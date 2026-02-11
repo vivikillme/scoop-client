@@ -3,6 +3,8 @@ import { RefreshCw, Trash2, Info } from 'lucide-react'
 import Sidebar from '../components/Sidebar'
 import { InstalledApp } from '../lib/types'
 import { cn } from '../lib/utils'
+import { ToastContainer } from '../components/Toast'
+import { useToast } from '../hooks/useToast'
 
 // Apps that commonly support version switching
 const VERSION_MANAGED_APPS = ['openjdk', 'temurin', 'zulu', 'nodejs', 'nodejs-lts', 'python', 'go']
@@ -14,6 +16,7 @@ export default function SettingsPage() {
   const [versions, setVersions] = useState<string[]>([])
   const [loadingVersions, setLoadingVersions] = useState(false)
   const [resetting, setResetting] = useState<string | null>(null)
+  const { toasts, closeToast, success, error } = useToast()
 
   useEffect(() => {
     loadApps()
@@ -91,21 +94,14 @@ export default function SettingsPage() {
     try {
       const result = await window.electronAPI.scoopReset(resetArg)
       if (result.code === 0) {
-        window.electronAPI.showMessage({
-          type: 'info',
-          title: 'Reset Complete',
-          message: `${appName} has been reset successfully.`,
-        })
+        success('Reset Complete', `${appName} has been reset successfully.`)
         loadApps()
       } else {
-        window.electronAPI.showMessage({
-          type: 'error',
-          title: 'Reset Failed',
-          message: result.stderr || `Failed to reset ${appName}`,
-        })
+        error('Reset Failed', result.stderr || `Failed to reset ${appName}`)
       }
-    } catch (error) {
-      console.error('Reset failed:', error)
+    } catch (err) {
+      console.error('Reset failed:', err)
+      error('Reset Failed', 'An unexpected error occurred')
     } finally {
       setResetting(null)
     }
@@ -114,17 +110,9 @@ export default function SettingsPage() {
   const handleCleanup = async () => {
     const result = await window.electronAPI.scoopCleanup()
     if (result.code === 0) {
-      window.electronAPI.showMessage({
-        type: 'info',
-        title: 'Cleanup Complete',
-        message: 'Old versions have been cleaned up.',
-      })
+      success('Cleanup Complete', 'Old versions have been cleaned up.')
     } else {
-      window.electronAPI.showMessage({
-        type: 'error',
-        title: 'Cleanup Failed',
-        message: result.stderr || 'Failed to cleanup old versions.',
-      })
+      error('Cleanup Failed', result.stderr || 'Failed to cleanup old versions.')
     }
   }
 
@@ -239,6 +227,7 @@ export default function SettingsPage() {
           </section>
         </div>
       </main>
+      <ToastContainer toasts={toasts} onClose={closeToast} />
     </div>
   )
 }

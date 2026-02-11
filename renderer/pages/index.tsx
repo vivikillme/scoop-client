@@ -2,12 +2,15 @@ import { useEffect, useState } from 'react'
 import Sidebar from '../components/Sidebar'
 import AppList from '../components/AppList'
 import { InstalledApp, AppStatus } from '../lib/types'
+import { ToastContainer } from '../components/Toast'
+import { useToast } from '../hooks/useToast'
 
 export default function Home() {
   const [isScoopInstalled, setIsScoopInstalled] = useState<boolean | null>(null)
   const [apps, setApps] = useState<InstalledApp[]>([])
   const [loading, setLoading] = useState(true)
   const [checkingUpdates, setCheckingUpdates] = useState(false)
+  const { toasts, closeToast, success, error } = useToast()
 
   useEffect(() => {
     checkScoop()
@@ -133,12 +136,9 @@ export default function Home() {
     const result = await window.electronAPI.scoopUninstall(appName)
     if (result.code === 0) {
       loadInstalledApps()
+      success('Uninstall Complete', `${appName} has been uninstalled successfully.`)
     } else {
-      window.electronAPI.showMessage({
-        type: 'error',
-        title: 'Uninstall Failed',
-        message: result.stderr || 'Failed to uninstall ' + appName,
-      })
+      error('Uninstall Failed', result.stderr || 'Failed to uninstall ' + appName)
     }
   }
 
@@ -146,17 +146,9 @@ export default function Home() {
     const result = await window.electronAPI.scoopUpdate(appName)
     if (result.code === 0) {
       loadInstalledApps()
-      window.electronAPI.showMessage({
-        type: 'info',
-        title: 'Update Complete',
-        message: appName ? `${appName} has been updated.` : 'All apps have been updated.',
-      })
+      success('Update Complete', appName ? `${appName} has been updated.` : 'All apps have been updated.')
     } else {
-      window.electronAPI.showMessage({
-        type: 'error',
-        title: 'Update Failed',
-        message: result.stderr || 'Failed to update.',
-      })
+      error('Update Failed', result.stderr || 'Failed to update.')
     }
   }
 
@@ -246,6 +238,7 @@ export default function Home() {
           )}
         </div>
       </main>
+      <ToastContainer toasts={toasts} onClose={closeToast} />
     </div>
   )
 }

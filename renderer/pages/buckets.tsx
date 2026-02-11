@@ -3,6 +3,8 @@ import { Plus, Trash2, RefreshCw } from 'lucide-react'
 import Sidebar from '../components/Sidebar'
 import { Bucket, KnownBucket } from '../lib/types'
 import { cn } from '../lib/utils'
+import { ToastContainer } from '../components/Toast'
+import { useToast } from '../hooks/useToast'
 
 // Known Scoop buckets
 const KNOWN_BUCKETS: KnownBucket[] = [
@@ -25,6 +27,7 @@ export default function BucketsPage() {
   const [newBucketName, setNewBucketName] = useState('')
   const [newBucketRepo, setNewBucketRepo] = useState('')
   const [processing, setProcessing] = useState<string | null>(null)
+  const { toasts, closeToast, success, error, info } = useToast()
 
   useEffect(() => {
     loadBuckets()
@@ -82,15 +85,13 @@ export default function BucketsPage() {
         setShowAddDialog(false)
         setNewBucketName('')
         setNewBucketRepo('')
+        success('Bucket Added', `${newBucketName} has been added successfully.`)
       } else {
-        window.electronAPI.showMessage({
-          type: 'error',
-          title: 'Add Bucket Failed',
-          message: result.stderr || `Failed to add bucket ${newBucketName}`,
-        })
+        error('Add Bucket Failed', result.stderr || `Failed to add bucket ${newBucketName}`)
       }
-    } catch (error) {
-      console.error('Add bucket failed:', error)
+    } catch (err) {
+      console.error('Add bucket failed:', err)
+      error('Add Bucket Failed', 'An unexpected error occurred')
     } finally {
       setProcessing(null)
     }
@@ -102,15 +103,13 @@ export default function BucketsPage() {
       const result = await window.electronAPI.scoopBucketRm(name)
       if (result.code === 0) {
         loadBuckets()
+        success('Bucket Removed', `${name} has been removed successfully.`)
       } else {
-        window.electronAPI.showMessage({
-          type: 'error',
-          title: 'Remove Bucket Failed',
-          message: result.stderr || `Failed to remove bucket ${name}`,
-        })
+        error('Remove Bucket Failed', result.stderr || `Failed to remove bucket ${name}`)
       }
-    } catch (error) {
-      console.error('Remove bucket failed:', error)
+    } catch (err) {
+      console.error('Remove bucket failed:', err)
+      error('Remove Bucket Failed', 'An unexpected error occurred')
     } finally {
       setProcessing(null)
     }
@@ -118,11 +117,7 @@ export default function BucketsPage() {
 
   const handleAddKnownBucket = async (bucket: KnownBucket) => {
     if (buckets.some(b => b.name === bucket.name)) {
-      window.electronAPI.showMessage({
-        type: 'info',
-        title: 'Bucket Exists',
-        message: `Bucket "${bucket.name}" is already added.`,
-      })
+      info('Bucket Exists', `Bucket "${bucket.name}" is already added.`)
       return
     }
 
@@ -131,15 +126,13 @@ export default function BucketsPage() {
       const result = await window.electronAPI.scoopBucketAdd(bucket.name, bucket.source)
       if (result.code === 0) {
         loadBuckets()
+        success('Bucket Added', `${bucket.name} has been added successfully.`)
       } else {
-        window.electronAPI.showMessage({
-          type: 'error',
-          title: 'Add Bucket Failed',
-          message: result.stderr || `Failed to add bucket ${bucket.name}`,
-        })
+        error('Add Bucket Failed', result.stderr || `Failed to add bucket ${bucket.name}`)
       }
-    } catch (error) {
-      console.error('Add bucket failed:', error)
+    } catch (err) {
+      console.error('Add bucket failed:', err)
+      error('Add Bucket Failed', 'An unexpected error occurred')
     } finally {
       setProcessing(null)
     }
@@ -299,6 +292,7 @@ export default function BucketsPage() {
           </section>
         </div>
       </main>
+      <ToastContainer toasts={toasts} onClose={closeToast} />
     </div>
   )
 }

@@ -4,10 +4,13 @@ import Sidebar from '../components/Sidebar'
 import SearchBar from '../components/SearchBar'
 import { SearchApp } from '../lib/types'
 import { cn } from '../lib/utils'
+import { ToastContainer } from '../components/Toast'
+import { useToast } from '../hooks/useToast'
 
 export default function SearchPage() {
   const [results, setResults] = useState<SearchApp[]>([])
   const [loading, setLoading] = useState(false)
+  const { toasts, closeToast, success, error, info } = useToast()
   const [installing, setInstalling] = useState<string | null>(null)
   const [searched, setSearched] = useState(false)
 
@@ -74,20 +77,13 @@ export default function SearchPage() {
     try {
       const result = await window.electronAPI.scoopInstall(fullName)
       if (result.code === 0) {
-        window.electronAPI.showMessage({
-          type: 'info',
-          title: 'Install Complete',
-          message: `${appName} has been installed successfully.`,
-        })
+        success('Install Complete', `${appName} has been installed successfully.`)
       } else {
-        window.electronAPI.showMessage({
-          type: 'error',
-          title: 'Install Failed',
-          message: result.stderr || `Failed to install ${appName}`,
-        })
+        error('Install Failed', result.stderr || `Failed to install ${appName}`)
       }
-    } catch (error) {
-      console.error('Install failed:', error)
+    } catch (err) {
+      console.error('Install failed:', err)
+      error('Install Failed', 'An unexpected error occurred')
     } finally {
       setInstalling(null)
     }
@@ -97,11 +93,7 @@ export default function SearchPage() {
     const fullName = bucket ? `${bucket}/${appName}` : appName
     const result = await window.electronAPI.scoopInfo(fullName)
     if (result.code === 0) {
-      window.electronAPI.showMessage({
-        type: 'info',
-        title: appName,
-        message: result.stdout,
-      })
+      info(appName, result.stdout)
     }
   }
 
@@ -191,6 +183,7 @@ export default function SearchPage() {
           )}
         </div>
       </main>
+      <ToastContainer toasts={toasts} onClose={closeToast} />
     </div>
   )
 }
