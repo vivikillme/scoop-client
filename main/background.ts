@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, dialog, shell } from 'electron'
+import { app, BrowserWindow, ipcMain, dialog, shell, globalShortcut } from 'electron'
 import * as path from 'path'
 import { exec, spawn } from 'child_process'
 import { promisify } from 'util'
@@ -117,6 +117,13 @@ app.whenReady().then(async () => {
 
   createWindow()
 
+  // Register global shortcut to toggle DevTools
+  globalShortcut.register('CommandOrControl+Shift+Alt+O', () => {
+    if (mainWindow && mainWindow.webContents) {
+      mainWindow.webContents.toggleDevTools()
+    }
+  })
+
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
       createWindow()
@@ -125,6 +132,8 @@ app.whenReady().then(async () => {
 })
 
 app.on('window-all-closed', () => {
+  // Unregister all shortcuts
+  globalShortcut.unregisterAll()
   closeDatabase()
   if (process.platform !== 'darwin') {
     app.quit()
@@ -132,6 +141,7 @@ app.on('window-all-closed', () => {
 })
 
 app.on('before-quit', () => {
+  globalShortcut.unregisterAll()
   closeDatabase()
 })
 
