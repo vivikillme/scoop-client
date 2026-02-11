@@ -5,9 +5,9 @@ import { cn } from '../lib/utils'
 
 const navItems = [
   { id: 'installed', label: 'Installed Apps', icon: Package, href: '/' },
-  { id: 'search', label: 'Search & Install', icon: Search, href: '/search' },
-  { id: 'buckets', label: 'Buckets', icon: Database, href: '/buckets' },
-  { id: 'settings', label: 'Settings', icon: Settings, href: '/settings' },
+  { id: 'search', label: 'Search & Install', icon: Search, href: '/search/' },
+  { id: 'buckets', label: 'Buckets', icon: Database, href: '/buckets/' },
+  { id: 'settings', label: 'Settings', icon: Settings, href: '/settings/' },
 ]
 
 export default function Sidebar() {

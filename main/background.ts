@@ -96,7 +96,8 @@ function createWindow() {
     mainWindow.loadURL(`http://localhost:${port}`)
     // mainWindow.webContents.openDevTools()
   } else {
-    mainWindow.loadFile(path.join(__dirname, '../renderer/out/index.html'))
+    // In production, index.html is in the same directory as background.js (app/)
+    mainWindow.loadFile(path.join(__dirname, 'index.html'))
   }
 
   mainWindow.setMenu(null);
