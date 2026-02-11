@@ -94,6 +94,8 @@ export default function SettingsPage() {
     try {
       const result = await window.electronAPI.scoopReset(resetArg)
       if (result.code === 0) {
+        // Clear cache so the installed apps page will refresh
+        sessionStorage.removeItem('scoop-apps')
         success('Reset Complete', `${appName} has been reset successfully.`)
         loadApps()
       } else {

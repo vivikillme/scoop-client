@@ -1,15 +1,19 @@
 import { useEffect, useState } from 'react'
+import { RefreshCw } from 'lucide-react'
 import Sidebar from '../components/Sidebar'
 import AppList from '../components/AppList'
 import { InstalledApp, AppStatus } from '../lib/types'
 import { ToastContainer } from '../components/Toast'
 import { useToast } from '../hooks/useToast'
+import { cn } from '../lib/utils'
 
 export default function Home() {
   const [isScoopInstalled, setIsScoopInstalled] = useState<boolean | null>(null)
   const [apps, setApps] = useState<InstalledApp[]>([])
   const [loading, setLoading] = useState(true)
   const [checkingUpdates, setCheckingUpdates] = useState(false)
+  const [updating, setUpdating] = useState(false)
+  const [updatingApp, setUpdatingApp] = useState<string | null>(null)
   const { toasts, closeToast, success, error } = useToast()
 
   useEffect(() => {
@@ -25,25 +29,52 @@ export default function Home() {
     const installed = await window.electronAPI.checkScoop()
     setIsScoopInstalled(installed)
     if (installed) {
-      loadInstalledApps()
+      loadInstalledAppsFromCache()
     } else {
       setLoading(false)
     }
   }
 
-  const loadInstalledApps = async (): Promise<InstalledApp[]> => {
-    setLoading(true)
+  // Load apps from cache first, then optionally refresh
+  const loadInstalledAppsFromCache = async () => {
+    try {
+      // Try to load from sessionStorage first
+      const cached = sessionStorage.getItem('scoop-apps')
+      if (cached) {
+        const cachedApps = JSON.parse(cached) as InstalledApp[]
+        setApps(cachedApps)
+        setLoading(false)
+        // Check for updates in background
+        checkForUpdates(cachedApps)
+      } else {
+        // No cache, load fresh data
+        await loadInstalledApps()
+      }
+    } catch (error) {
+      console.error('Failed to load from cache:', error)
+      await loadInstalledApps()
+    }
+  }
+
+  const loadInstalledApps = async (silent = false): Promise<InstalledApp[]> => {
+    if (!silent) {
+      setLoading(true)
+    }
     try {
       const result = await window.electronAPI.scoopList()
       if (result.code === 0 && result.stdout) {
         const parsedApps = parseScoopList(result.stdout)
         setApps(parsedApps)
+        // Save to sessionStorage
+        sessionStorage.setItem('scoop-apps', JSON.stringify(parsedApps))
         return parsedApps
       }
     } catch (error) {
       console.error('Failed to load apps:', error)
     } finally {
-      setLoading(false)
+      if (!silent) {
+        setLoading(false)
+      }
     }
     return []
   }
@@ -67,6 +98,8 @@ export default function Home() {
           return app
         })
         setApps(updatedApps)
+        // Update sessionStorage
+        sessionStorage.setItem('scoop-apps', JSON.stringify(updatedApps))
       }
     } catch (error) {
       console.error('Failed to check for updates:', error)
@@ -135,7 +168,11 @@ export default function Home() {
   const handleUninstall = async (appName: string) => {
     const result = await window.electronAPI.scoopUninstall(appName)
     if (result.code === 0) {
-      loadInstalledApps()
+      // Remove app from list instead of reloading
+      const updatedApps = apps.filter(app => app.name !== appName)
+      setApps(updatedApps)
+      // Update sessionStorage
+      sessionStorage.setItem('scoop-apps', JSON.stringify(updatedApps))
       success('Uninstall Complete', `${appName} has been uninstalled successfully.`)
     } else {
       error('Uninstall Failed', result.stderr || 'Failed to uninstall ' + appName)
@@ -143,17 +180,53 @@ export default function Home() {
   }
 
   const handleUpdate = async (appName?: string) => {
-    const result = await window.electronAPI.scoopUpdate(appName)
-    if (result.code === 0) {
-      loadInstalledApps()
-      success('Update Complete', appName ? `${appName} has been updated.` : 'All apps have been updated.')
+    if (appName) {
+      setUpdatingApp(appName)
     } else {
-      error('Update Failed', result.stderr || 'Failed to update.')
+      setUpdating(true)
+    }
+    try {
+      const result = await window.electronAPI.scoopUpdate(appName)
+      if (result.code === 0) {
+        if (appName) {
+          // Single app update - just update that app's status
+          const updatedApps = apps.map(app => {
+            if (app.name === appName) {
+              return {
+                ...app,
+                version: app.latestVersion || app.version,
+                latestVersion: app.latestVersion,
+                needsUpdate: false,
+              }
+            }
+            return app
+          })
+          setApps(updatedApps)
+          // Update sessionStorage
+          sessionStorage.setItem('scoop-apps', JSON.stringify(updatedApps))
+        } else {
+          // Update all - reload the list
+          const loadedApps = await loadInstalledApps(true)
+          if (loadedApps.length > 0) {
+            checkForUpdates(loadedApps)
+          }
+        }
+        success('Update Complete', appName ? `${appName} has been updated.` : 'All apps have been updated.')
+      } else {
+        error('Update Failed', result.stderr || 'Failed to update.')
+      }
+    } finally {
+      if (appName) {
+        setUpdatingApp(null)
+      } else {
+        setUpdating(false)
+      }
     }
   }
 
   const handleRefresh = async () => {
-    const loadedApps = await loadInstalledApps()
+    // Force reload from scoop, not from cache
+    const loadedApps = await loadInstalledApps(false)
     if (loadedApps.length > 0) {
       checkForUpdates(loadedApps)
     }
@@ -222,9 +295,22 @@ export default function Home() {
               {appsNeedingUpdate > 0 && (
                 <button
                   onClick={() => handleUpdate()}
-                  className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:opacity-90"
+                  disabled={updating}
+                  className={cn(
+                    'flex items-center gap-2 px-4 py-2 rounded-md transition-colors',
+                    updating
+                      ? 'bg-muted text-muted-foreground cursor-not-allowed'
+                      : 'bg-primary text-primary-foreground hover:opacity-90'
+                  )}
                 >
-                  Update All
+                  {updating ? (
+                    <>
+                      <RefreshCw className="w-4 h-4 animate-spin" />
+                      Updating...
+                    </>
+                  ) : (
+                    'Update All'
+                  )}
                 </button>
               )}
             </div>
@@ -234,7 +320,7 @@ export default function Home() {
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
             </div>
           ) : (
-            <AppList apps={apps} onUninstall={handleUninstall} onUpdate={handleUpdate} />
+            <AppList apps={apps} onUninstall={handleUninstall} onUpdate={handleUpdate} updatingApp={updatingApp} />
           )}
         </div>
       </main>

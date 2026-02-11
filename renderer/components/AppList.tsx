@@ -6,9 +6,10 @@ interface AppListProps {
   apps: InstalledApp[]
   onUninstall: (name: string) => void
   onUpdate: (name: string) => void
+  updatingApp?: string | null
 }
 
-export default function AppList({ apps, onUninstall, onUpdate }: AppListProps) {
+export default function AppList({ apps, onUninstall, onUpdate, updatingApp }: AppListProps) {
   if (apps.length === 0) {
     return (
       <div className="text-center py-12">
@@ -60,11 +61,26 @@ export default function AppList({ apps, onUninstall, onUpdate }: AppListProps) {
             {app.needsUpdate && (
               <button
                 onClick={() => onUpdate(app.name)}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-yellow-500 text-yellow-950 rounded-md hover:bg-yellow-400 transition-colors text-sm font-medium"
+                disabled={updatingApp === app.name}
+                className={cn(
+                  "flex items-center gap-1.5 px-3 py-1.5 rounded-md transition-colors text-sm font-medium",
+                  updatingApp === app.name
+                    ? "bg-muted text-muted-foreground cursor-not-allowed"
+                    : "bg-yellow-500 text-yellow-950 hover:bg-yellow-400"
+                )}
                 title="Update"
               >
-                <RefreshCw className="w-4 h-4" />
-                Update
+                {updatingApp === app.name ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                    Updating...
+                  </>
+                ) : (
+                  <>
+                    <RefreshCw className="w-4 h-4" />
+                    Update
+                  </>
+                )}
               </button>
             )}
             <button

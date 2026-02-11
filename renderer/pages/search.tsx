@@ -77,6 +77,8 @@ export default function SearchPage() {
     try {
       const result = await window.electronAPI.scoopInstall(fullName)
       if (result.code === 0) {
+        // Clear cache so the installed apps page will refresh
+        sessionStorage.removeItem('scoop-apps')
         success('Install Complete', `${appName} has been installed successfully.`)
       } else {
         error('Install Failed', result.stderr || `Failed to install ${appName}`)
