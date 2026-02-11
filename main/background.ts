@@ -9,6 +9,30 @@ const execAsync = promisify(exec)
 
 let mainWindow: BrowserWindow | null = null
 
+// Get icon path based on platform and whether app is packaged
+function getIconPath(): string | null {
+  const resourcesPath = app.isPackaged
+    ? path.join(process.resourcesPath, 'resources')
+    : path.join(__dirname, '../resources')
+
+  if (process.platform === 'win32') {
+    const icoPath = path.join(resourcesPath, 'icon.ico')
+    const pngPath = path.join(resourcesPath, 'icon.png')
+    // Prefer ICO on Windows, fall back to PNG
+    if (fs.existsSync(icoPath)) return icoPath
+    if (fs.existsSync(pngPath)) return pngPath
+  } else if (process.platform === 'darwin') {
+    const icnsPath = path.join(resourcesPath, 'icon.icns')
+    const pngPath = path.join(resourcesPath, 'icon.png')
+    if (fs.existsSync(icnsPath)) return icnsPath
+    if (fs.existsSync(pngPath)) return pngPath
+  } else {
+    const pngPath = path.join(resourcesPath, 'icon.png')
+    if (fs.existsSync(pngPath)) return pngPath
+  }
+  return null
+}
+
 // Check if Scoop is installed
 async function checkScoopInstalled(): Promise<boolean> {
   try {
@@ -45,6 +69,9 @@ async function executeScoop(args: string[]): Promise<{ stdout: string; stderr: s
 }
 
 function createWindow() {
+  // Get icon path based on platform
+  const iconPath = getIconPath()
+
   mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
@@ -56,10 +83,9 @@ function createWindow() {
       preload: path.join(__dirname, 'preload.js'),
     },
     titleBarStyle: 'hiddenInset',
-    // frame: process.platform === 'darwin' ? true : false,
     frame: true,
     title: 'ScoopClient',
-    icon: path.join(__dirname, '../resources/icon.png'),
+    ...(iconPath ? { icon: iconPath } : {}),
   })
 
   // Development mode - Nextron passes the port as an argument
