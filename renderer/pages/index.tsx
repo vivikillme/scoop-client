@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react'
 import Sidebar from '../components/Sidebar'
 import AppList from '../components/AppList'
-import { InstalledApp } from '../lib/types'
+import { InstalledApp, AppStatus } from '../lib/types'
 
 export default function Home() {
   const [isScoopInstalled, setIsScoopInstalled] = useState<boolean | null>(null)
   const [apps, setApps] = useState<InstalledApp[]>([])
   const [loading, setLoading] = useState(true)
+  const [checkingUpdates, setCheckingUpdates] = useState(false)
 
   useEffect(() => {
     checkScoop()
@@ -27,18 +28,47 @@ export default function Home() {
     }
   }
 
-  const loadInstalledApps = async () => {
+  const loadInstalledApps = async (): Promise<InstalledApp[]> => {
     setLoading(true)
     try {
       const result = await window.electronAPI.scoopList()
       if (result.code === 0 && result.stdout) {
         const parsedApps = parseScoopList(result.stdout)
         setApps(parsedApps)
+        return parsedApps
       }
     } catch (error) {
       console.error('Failed to load apps:', error)
     } finally {
       setLoading(false)
+    }
+    return []
+  }
+
+  const checkForUpdates = async (currentApps: InstalledApp[]) => {
+    setCheckingUpdates(true)
+    try {
+      const result = await window.electronAPI.scoopStatus()
+      if (result.code === 0 && result.stdout) {
+        const statusMap = parseScoopStatus(result.stdout)
+        // Merge status info with apps
+        const updatedApps = currentApps.map(app => {
+          const status = statusMap.get(app.name.toLowerCase())
+          if (status) {
+            return {
+              ...app,
+              latestVersion: status.latestVersion,
+              needsUpdate: status.needsUpdate,
+            }
+          }
+          return app
+        })
+        setApps(updatedApps)
+      }
+    } catch (error) {
+      console.error('Failed to check for updates:', error)
+    } finally {
+      setCheckingUpdates(false)
     }
   }
 
@@ -65,6 +95,38 @@ export default function Home() {
     }
 
     return apps
+  }
+
+  const parseScoopStatus = (output: string): Map<string, AppStatus> => {
+    const statusMap = new Map<string, AppStatus>()
+    const lines = output.trim().split('\n')
+
+    for (const line of lines) {
+      const trimmed = line.trim()
+      // Skip header and separator lines
+      if (!trimmed ||
+          trimmed.startsWith('---') ||
+          trimmed.toLowerCase().includes('name') ||
+          trimmed.toLowerCase().includes('current')) {
+        continue
+      }
+
+      // Parse: "name current_version latest_version ..."
+      const parts = trimmed.split(/\s+/)
+      if (parts.length >= 3) {
+        const name = parts[0]
+        const currentVersion = parts[1]
+        const latestVersion = parts[2]
+        statusMap.set(name.toLowerCase(), {
+          name,
+          currentVersion,
+          latestVersion,
+          needsUpdate: currentVersion !== latestVersion,
+        })
+      }
+    }
+
+    return statusMap
   }
 
   const handleUninstall = async (appName: string) => {
@@ -95,6 +157,13 @@ export default function Home() {
         title: 'Update Failed',
         message: result.stderr || 'Failed to update.',
       })
+    }
+  }
+
+  const handleRefresh = async () => {
+    const loadedApps = await loadInstalledApps()
+    if (loadedApps.length > 0) {
+      checkForUpdates(loadedApps)
     }
   }
 
@@ -129,19 +198,44 @@ export default function Home() {
     )
   }
 
+  const appsNeedingUpdate = apps.filter(app => app.needsUpdate).length
+
   return (
     <div className="flex h-screen bg-background">
       <Sidebar />
       <main className="flex-1 overflow-auto">
         <div className="p-6">
           <div className="flex items-center justify-between mb-6">
-            <h1 className="text-2xl font-bold text-foreground">Installed Apps</h1>
-            <button
-              onClick={() => handleUpdate()}
-              className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:opacity-90"
-            >
-              Update All
-            </button>
+            <div className="flex items-center gap-3">
+              <h1 className="text-2xl font-bold text-foreground">Installed Apps</h1>
+              {checkingUpdates && (
+                <span className="text-sm text-muted-foreground flex items-center gap-2">
+                  <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-primary"></div>
+                  Checking for updates...
+                </span>
+              )}
+              {appsNeedingUpdate > 0 && !checkingUpdates && (
+                <span className="text-sm px-2 py-0.5 bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 rounded">
+                  {appsNeedingUpdate} update(s) available
+                </span>
+              )}
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleRefresh}
+                className="px-3 py-2 border border-border text-muted-foreground hover:text-foreground rounded-md hover:bg-accent transition-colors"
+              >
+                Refresh
+              </button>
+              {appsNeedingUpdate > 0 && (
+                <button
+                  onClick={() => handleUpdate()}
+                  className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:opacity-90"
+                >
+                  Update All
+                </button>
+              )}
+            </div>
           </div>
           {loading ? (
             <div className="flex items-center justify-center h-64">

@@ -47,6 +47,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   scoopStatus: (): Promise<ScoopResult> =>
     ipcRenderer.invoke('scoop-status'),
 
+  scoopVersions: (app: string): Promise<{ versions: string[]; currentVersion: string; error: string | null }> =>
+    ipcRenderer.invoke('scoop-versions', app),
+
   openExternal: (url: string): Promise<void> =>
     ipcRenderer.invoke('open-external', url),
 

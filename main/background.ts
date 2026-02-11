@@ -58,6 +58,7 @@ function createWindow() {
     titleBarStyle: 'hiddenInset',
     // frame: process.platform === 'darwin' ? true : false,
     frame: true,
+    title: 'ScoopClient',
     icon: path.join(__dirname, '../resources/icon.png'),
   })
 
@@ -160,6 +161,47 @@ ipcMain.handle('scoop-cleanup', async (_, app?: string) => {
 
 ipcMain.handle('scoop-status', async () => {
   return executeScoop(['status'])
+})
+
+// Get installed versions for an app (for version switching)
+ipcMain.handle('scoop-versions', async (_, appName: string) => {
+  try {
+    // Get scoop apps directory
+    const homeDir = process.env.USERPROFILE || process.env.HOME
+    if (!homeDir) {
+      return { versions: [], currentVersion: '', error: 'Cannot determine home directory' }
+    }
+
+    const appsDir = path.join(homeDir, 'scoop', 'apps', appName)
+    const currentLink = path.join(appsDir, 'current')
+
+    // Check if app directory exists
+    if (!fs.existsSync(appsDir)) {
+      return { versions: [], currentVersion: '', error: 'App not found' }
+    }
+
+    // Get current version from 'current' symlink
+    let currentVersion = ''
+    try {
+      if (fs.existsSync(currentLink)) {
+        const currentTarget = fs.readlinkSync(currentLink)
+        currentVersion = path.basename(currentTarget)
+      }
+    } catch (e) {
+      // current might not be a symlink or not exist
+    }
+
+    // List all version directories
+    const entries = fs.readdirSync(appsDir, { withFileTypes: true })
+    const versions = entries
+      .filter(entry => entry.isDirectory() && entry.name !== 'current')
+      .map(entry => entry.name)
+      .sort((a, b) => b.localeCompare(a, undefined, { numeric: true })) // Sort descending
+
+    return { versions, currentVersion, error: null }
+  } catch (error) {
+    return { versions: [], currentVersion: '', error: String(error) }
+  }
 })
 
 ipcMain.handle('open-external', async (_, url: string) => {

@@ -21,6 +21,8 @@ declare global {
       scoopBucketRm: (name: string) => Promise<ScoopResult>
       scoopReset: (app: string) => Promise<ScoopResult>
       scoopCleanup: (app?: string) => Promise<ScoopResult>
+      scoopStatus: () => Promise<ScoopResult>
+      scoopVersions: (app: string) => Promise<{ versions: string[]; currentVersion: string; error: string | null }>
       openExternal: (url: string) => Promise<void>
       showMessage: (options: {
         type: 'none' | 'info' | 'error' | 'question' | 'warning'
