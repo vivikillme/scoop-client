@@ -44,6 +44,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   scoopCleanup: (app?: string): Promise<ScoopResult> =>
     ipcRenderer.invoke('scoop-cleanup', app),
 
+  scoopStatus: (): Promise<ScoopResult> =>
+    ipcRenderer.invoke('scoop-status'),
+
   openExternal: (url: string): Promise<void> =>
     ipcRenderer.invoke('open-external', url),
 

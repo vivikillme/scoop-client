@@ -56,7 +56,8 @@ function createWindow() {
       preload: path.join(__dirname, 'preload.js'),
     },
     titleBarStyle: 'hiddenInset',
-    frame: process.platform === 'darwin' ? true : false,
+    // frame: process.platform === 'darwin' ? true : false,
+    frame: true,
     icon: path.join(__dirname, '../resources/icon.png'),
   })
 
@@ -66,10 +67,12 @@ function createWindow() {
     // Get port from command line (Nextron passes it as first arg after the app path)
     const port = process.argv[2] || '8888'
     mainWindow.loadURL(`http://localhost:${port}`)
-    mainWindow.webContents.openDevTools()
+    // mainWindow.webContents.openDevTools()
   } else {
     mainWindow.loadFile(path.join(__dirname, '../renderer/out/index.html'))
   }
+
+  mainWindow.setMenu(null);
 
   mainWindow.on('closed', () => {
     mainWindow = null
@@ -153,6 +156,10 @@ ipcMain.handle('scoop-reset', async (_, app: string) => {
 
 ipcMain.handle('scoop-cleanup', async (_, app?: string) => {
   return executeScoop(['cleanup', app || '*'])
+})
+
+ipcMain.handle('scoop-status', async () => {
+  return executeScoop(['status'])
 })
 
 ipcMain.handle('open-external', async (_, url: string) => {
